@@ -3,7 +3,6 @@ const R = require('ramda')
 const templateOptions = {
     placeholderPattern: /^([A-Z0-9]+)([A-Z0-9_]+)$/,
 };
-// const excludeFile = /^.*(store|router|EventEmitter|BusinessMarkContent|ErrorBoundary|createBaseForm)(\.(tsx|ts|less))?$/g
 const fail = []
 const success = []
 function injectCodeForRoot (api, state, root) {
@@ -124,21 +123,32 @@ function injectCodeForSpecialClass(api, state, node) {
     if (types.isBlockStatement(cBody)) {
         const returnStatement = node.body.body.pop()
         node.body.body.push(classAst, returnStatement)
-    } else {
-        // const returnStatement = types.returnStatement(cBody)
-        // const blockStatement = types.blockStatement([
-        //     fnAst,
-        //     returnStatement
-        // ])
-        // node.body = blockStatement
-    }
+    } 
+}
+function injectCodeForOtherType(api, state, node) {
+    const { depends, exportNode } = state
+    const { template } = api
+    const buildTagger = template(
+        `reactHotRegister 
+                    ? reactHotRegister(function(update) {
+                        if (module && module.hot) {
+                            module.hot.accept(DEPENDENCIES, function() {
+                                update()
+                            })
+                        }
+                    })(COMPONENT) 
+                    : COMPONENT
+                `, templateOptions)({
+        DEPENDENCIES: depends,
+        COMPONENT: node
+    })
+    exportNode.declaration = buildTagger
 }
 function injectCodeByType(api, state, node, fnCaller) {
     if (!node) {
         return
     }
-    const { isFunctionIdentifier, isClassIdentifier, isSpecialClassIdentifier, fnMap } = state
-    const { types } = api
+    const { types, template } = api
     const {
         isArrayExpression,
         isObjectExpression,
@@ -147,15 +157,10 @@ function injectCodeByType(api, state, node, fnCaller) {
         isFunctionDeclaration,
         isClassExpression,
         isClassDeclaration,
-        isCallExpression
+        isCallExpression,
+        isIdentifier
     } = types
-    const name = node.name
-    const {
-        // depends,
-        classMap,
-        // fnMap,
-        // reactNode
-    } = state
+   
     switch (true) {
         case isArrayExpression(node):
         case isObjectExpression(node):
@@ -163,13 +168,6 @@ function injectCodeByType(api, state, node, fnCaller) {
         case isArrowFunctionExpression(node):
         case isFunctionExpression(node):
         case isFunctionDeclaration(node): {
-            if (fnCaller) {
-                if (['inject', 'observer'].includes(fnCaller)) {
-                    const rootNode = state.rootNode
-                    injectCodeForRoot(api, state, rootNode)
-                    return
-                }
-            }
             injectCodeForFunction(api, state, node)
             success.push(state.filename)
             break
@@ -180,67 +178,9 @@ function injectCodeByType(api, state, node, fnCaller) {
             success.push(state.filename)
             break
         }
-        case isClassIdentifier(node): {
-            const component = classMap.get(name)
-            injectCodeForClass(api, state, component)
-            // const classAst = template(classHotCode, templateOptions)({
-            //     DEPS: template.expression(`${JSON.stringify(depends)}`)()
-            // })
-            // const superExpression = types.expressionStatement(
-            //     types.callExpression(types.super(), [types.identifier('props')])
-            // )
-            // const blockStatement = types.blockStatement([
-            //     superExpression,
-            //     classAst
-            // ])
-            // const constructorMethodNode = types.classMethod(
-            //     'constructor',
-            //     types.identifier('constructor'),
-            //     [types.identifier('props')],
-            //     blockStatement
-            // )
-            // const constructorMethod = component.body.body.find(method => {
-            //     return method.kind === 'constructor'
-            // })
-            // if (R.isNil(constructorMethod)) {
-            //     component.body.body.unshift(constructorMethodNode)
-            // } else {
-            //     constructorMethod.body.body.push(classAst)
-            // }
-            success.push(state.filename)
-            break
-        }
-        case isFunctionIdentifier(node): {
-            // const newNode = types.importSpecifier(types.identifier('useReducer'), types.identifier('useReducer'))
-            // const hasReducer = reactNode.specifiers.find(s => {
-            //     if (!s.imported) {
-            //         return false
-            //     } else {
-            //         return s.imported.name === newNode.imported.name
-            //     }
-            // })
-            // if (!hasReducer) {
-            //     reactNode.specifiers.push(newNode)
-            // }
-            // const fnAst = template(functionHotCode, templateOptions)({
-            //     DEPS: template.expression(`${JSON.stringify(depends)}`)()
-            // })
-            const component = fnMap.get(name)
-            injectCodeForFunction(api, state, component)
-            success.push(state.filename)
-            break
-        }
-        case isSpecialClassIdentifier(node):
-            const component = fnMap.get(name)
-            injectCodeForSpecialClass(api, state, component)
-            break
+        case isIdentifier(node):
         case isCallExpression(node):
-            const args = node.arguments
-            const len = R.length(args)
-            const callee = node.callee.name
-            for (let i = 0;i < len;i++) {
-                injectCodeByType(api, state, args[i], callee)
-            }
+            injectCodeForOtherType(api, state, node)
             break
         default:
             fail.push(state.filename)
