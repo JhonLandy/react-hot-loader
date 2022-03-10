@@ -12,9 +12,13 @@
     ...
   ],
   "plugins": [
-    ["./**/react-hot-loader", {
-      "includePaths": ["./src/screen", "./scr/components"],
-      "excludePaths": ["./node_modules",  "./src/utils/Api"]
+    ["./src/utils/custom-babel-plugins/react-hot-loader", {
+      "includePaths": ["/src/screen", "/src/layout"],
+      "excludePaths": [
+        "/src/layout/modal",
+        "/src/**/store",
+        "/src/**/*/EventEmitter"
+      ]
     }]
   ]
 }
