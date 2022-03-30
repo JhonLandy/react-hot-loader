@@ -7,7 +7,7 @@ const utils = require("./utils")
 
 
 const { injectCodeForRoot, injectCodeByType } = inject
-const { getReg, shouldSkip } = utils
+const { hasPath, shouldSkip } = utils
 module.exports = declare((api, options) => {
     if (api.getEnv() === 'production') {
         return {}
@@ -15,8 +15,6 @@ module.exports = declare((api, options) => {
     api.assertVersion(7)
     const { types } = api
     const { includePaths = [],  excludePaths = [] } = options
-    const _includePaths = includePaths.map(url => getReg(url))
-    const _excludePaths = excludePaths.concat(["/node_modules"]).map(url => getReg(url))
     return {
         visitor: {
             Program(_path, state) {
@@ -25,9 +23,10 @@ module.exports = declare((api, options) => {
                 state['reactNode'] = null
                 state['exportNode'] = null
                 state['rootNode'] = _path.node
-
-                const shouldSkip = R.isEmpty(_includePaths) ? false : !_includePaths.some(pathReg => pathReg.test(filename.replace(/\\/g, '/')))
-                state.shouldSkip = shouldSkip ? shouldSkip : _excludePaths.some(pathReg => pathReg.test(filename.replace(/\\/g, '/')))
+                const shouldSkip = R.isEmpty(includePaths)
+                ? false
+                : !hasPath(includePaths, filename);
+                state.shouldSkip = shouldSkip ? shouldSkip : hasPath(excludePaths, filename);
             },
             ImportDeclaration(path, state) {
 

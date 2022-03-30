@@ -1,6 +1,29 @@
-import React, { useReducer, forwardRef, useRef, useImperativeHandle } from "react";
+import React, { useReducer, forwardRef, createElement, Component } from "react";
 import * as R from "ramda";
 window.isHot = false;
+function wrapperFunction(WrapperComponent, callback) {
+    return (props, ref) => {
+        const [_, forceUpdate] = useReducer(x => x + 1, 0);
+        callback(forceUpdate);
+        if (ref) {
+            props = Object.assign(props, { ref });
+        }
+        return createElement(WrapperComponent, props);
+    };
+}
+function typeOf(type) {
+    if (typeof type === "object" && type !== null) {
+        var $$typeof = type.$$typeof;
+        return $$typeof?.toString();
+    }
+    return undefined;
+}
+function isForwardRef(Component) {
+    return typeOf(Component) === "Symbol(react.forward_ref)";
+}
+function isMemo(Component) {
+    return typeOf(Component) === "Symbol(react.memo)";
+}
 window.reactHotRegister = function (callback) {
     return Comp => {
         if (
@@ -9,31 +32,26 @@ window.reactHotRegister = function (callback) {
         ) {
             return Comp;
         }
-        return forwardRef((props, ref) => {
-            const _ref = useRef();
-            const reducer = useReducer(x => x + 1, 0);
-
-            if (Comp.compare) {
+        switch (true) {
+            case isForwardRef(Comp):
+                return forwardRef(wrapperFunction(Comp, callback));
+            case isMemo(Comp):
                 const compare = Comp.compare;
                 Comp.compare = (...state) => (isHot ? false : compare(...state));
-            } else {
+                return wrapperFunction(Comp, callback);
+            case "forceUpdate" in Comp.prototype:
                 const prototype = Comp.prototype;
                 const shouldComponentUpdate = prototype?.shouldComponentUpdate;
 
                 if (prototype && shouldComponentUpdate) {
-                    if (!_ref.current) {
-                        _ref.current = new Comp(props);
-                    }
-                    const instance = _ref.current;
-                    prototype.shouldComponentUpdate = (...state) =>
-                        isHot ? true : shouldComponentUpdate.call(instance, ...state);
+                    prototype.shouldComponentUpdate = function (...args) {
+                        return isHot ? true : shouldComponentUpdate.call(this, ...args);
+                    };
                 }
-            }
-            useImperativeHandle(ref, () => _ref.current, []);
-            callback(reducer[1]);
-            return <Comp {...props} ref={_ref} />;
-        });
+                return forwardRef(wrapperFunction(Comp, callback));
+            default:
+                // 普通組件函數
+                return wrapperFunction(Comp, callback);
+        }
     };
 };
-
-export {};

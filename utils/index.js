@@ -26,7 +26,14 @@ function getReg(path) {
     regStr = regStr.replace('//', '/')
     return new RegExp(regStr)
 }
+function hasPath(paths = [], filename) {
+    return paths
+        .map(url => getReg(url))
+        .some(pathReg => pathReg.test(filename.replace(/\\/g, "/")));
+}
 module.exports = {
     getReg,
-    shouldSkip
-}
+    shouldSkip,
+    isPrepareExport,
+    hasPath,
+};
