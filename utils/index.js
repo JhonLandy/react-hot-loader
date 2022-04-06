@@ -1,39 +1,36 @@
 function shouldSkip(state) {
-    return state.shouldSkip || !state.reactNode
+    return state.shouldSkip || !state.reactNode;
 }
 function getReg(path) {
-    const oStartReg = /^(.*)\*(.*)$/
-    const singleMatch = path.match(oStartReg)
+    const oStartReg = /^(.*)\*(.*)$/;
+    const singleMatch = path.match(oStartReg);
 
-    const tStartReg = /^(.*)\*\*(.*)$/
-    const doubleMatch = path.match(tStartReg)
+    const tStartReg = /^(.*)\*\*(.*)$/;
+    const doubleMatch = path.match(tStartReg);
 
-    let regStr = path
+    let regStr = path;
     if (doubleMatch) {
-        const [_, start, end] = doubleMatch
-        regStr = start
-        const singleMatch = end.match(oStartReg)
+        const [_, start, end] = doubleMatch;
+        regStr = start;
+        const singleMatch = end.match(oStartReg);
         if (singleMatch) {
-            const [_, start, end] = singleMatch
-            regStr += start + '\(\.\*\)' + end + '\\.\(\.\*\)'
+            const [_, start, end] = singleMatch;
+            regStr += start + "(.*)" + end + "\\.(.*)";
         } else {
-            regStr += '\(\.\*\)' + end + '\(\.\*\)' + '\/'
+            regStr += "(.*)" + end + "(.*)" + "/";
         }
     } else if (singleMatch) {
-        const [_, start, end] = singleMatch
-        regStr = start + '\(\.\*\)' + end + '\\.\(\.\*\)'
+        const [_, start, end] = singleMatch;
+        regStr = start + "(.*)" + end + "\\.(.*)";
     }
-    regStr = regStr.replace('//', '/')
-    return new RegExp(regStr)
+    regStr = regStr.replace("//", "/");
+    return new RegExp(regStr);
 }
 function hasPath(paths = [], filename) {
-    return paths
-        .map(url => getReg(url))
-        .some(pathReg => pathReg.test(filename.replace(/\\/g, "/")));
+    return paths.some(path => getReg(path).test(filename.replace(/\\/g, "/")));
 }
 module.exports = {
+    hasPath,
     getReg,
     shouldSkip,
-    isPrepareExport,
-    hasPath,
 };
