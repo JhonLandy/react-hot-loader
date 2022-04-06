@@ -25,6 +25,7 @@ function isMemo(Component) {
     return typeOf(Component) === "Symbol(react.memo)";
 }
 window.reactHotRegister = function (callback) {
+    
     return Comp => {
         if (
             typeof Comp === "function" &&
