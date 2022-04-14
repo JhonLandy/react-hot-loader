@@ -5,7 +5,7 @@ function wrapperFunction(WrapperComponent, callback) {
     return (props, ref) => {
         const [_, forceUpdate] = useReducer(x => x + 1, 0);
         callback(forceUpdate);
-        if (!ref || isEmpty(ref)) {
+        if (!ref || R.isEmpty(ref)) {
             return createElement(WrapperComponent, props);
         }
         if (!Object.isExtensible(props)) {
