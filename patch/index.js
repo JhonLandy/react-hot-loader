@@ -5,10 +5,19 @@ function wrapperFunction(WrapperComponent, callback) {
     return (props, ref) => {
         const [_, forceUpdate] = useReducer(x => x + 1, 0);
         callback(forceUpdate);
-        if (ref) {
-            props = Object.assign(props, { ref });
+        if (!ref || isEmpty(ref)) {
+            return createElement(WrapperComponent, props);
         }
-        return createElement(WrapperComponent, props);
+        if (!Object.isExtensible(props)) {
+            // props不可扩展，意味着用了mobx包装函数
+            const _prototype = props.prototype;
+            const _props = Object.assign({ ref }, props);
+            _props.prototype = _prototype;
+            Object.preventExtensions(_props);
+            return createElement(WrapperComponent, _props);
+        }
+
+        return createElement(WrapperComponent, { ...props, ref });
     };
 }
 function typeOf(type) {
